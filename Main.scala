@@ -115,7 +115,10 @@ object Testing {
 
   def main(args: Array[String]): Unit = {
     //    CalculateTheStartAndEnd()
-    readFile()
+   val lines= readFile()
+    val result = lines.map((line) => aggragate(line))
+
+
 
 
   }
@@ -164,16 +167,17 @@ object Testing {
     val fileSource = Source.fromFile("/home/sanctum/IdeaProjects/data-computation12/project.json")
     val data = fileSource.getLines().toList
     var myList = Array("{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}")
-
-
-
-
-
-
     println("readfile: ", data)
 
     data
   }
+
+
+
+
+
+
+
 
   def aggragate(line: String): Telmetry = {
     val gson = new Gson()
@@ -193,11 +197,17 @@ object Testing {
     event.filter(x => x.eid == "END" && x.context.pdata.pid == "sunbird.app.contentplayer" && x.getUserId == userId && x.objectData.id == contentId).size
 
   }
-   List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
+  List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
   val distinctList = List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
   val result=distinctList.size
 
- val output=distinctList.filter(_ => _.getChannelId == ChannelId)
+
+
+
+
+  val output=distinctList.filter(_ => _.getChannelId == ChannelId)
+  println(output)
+
 
 
 }
