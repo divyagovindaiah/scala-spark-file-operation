@@ -1,3 +1,8 @@
+/**
+ * total number of completed contens by user
+ * total number of distinct channel
+ * total no of disctinct device id per channel
+ * is content interrupted*/
 import scala.io.Source
 import java.util.HashMap
 import scala.collection.mutable
@@ -10,120 +15,155 @@ import java.io.InputStreamReader
 import java.util.zip.GZIPInputStream
 import com.google.gson.Gson
 
-
-
-
-
-
-  case class Telmetry(
-                       eid: String,
-                       progress:ProgressData,
-                       context: ContextDetails,
-                       edata: Edata,
-                       actor: Actor,
-                       completedcontent: Int,
-                       objectData: ObjectBis,
-                       channel: ChannelId,
-                       contentid: ContentId
-
-                     ) {
-    def getId = eid
+case class Telmetry(
+  eid: String,
+  progress:ProgressData,
+  context: ContextDetails,
+  edata: Edata,
+  actor: Actor,
+  `object`: ObjectDetails) {
+    def getEid = eid
 
     def getUserId = actor.id
 
     def getPid = context.pdata.pid
-  }
 
+    def getChannelId: String = context.channel
+    def getProgress:Double = {
+      var c = 0.0
+      if (edata.summary.isInstanceOf[List[HashMap[String, String]]]) {
+        edata.summary.forEach(x =>
+          if (x.containsKey("progress"))
+            c += x.get("progress").toDouble
+        )
+      }
+      c
+    }
+    }
 
-  case class ContextDetails(
-                           sid: String,
-                           did: String,
-                           pdata: Pdata,
-                         )
+    def getContentId: String = {
+      if (`object`.isInstanceOf[ObjectDetails])
+        `object`.id
+      else "None"
+    }
+}
 
+case class ContextDetails(
+  sid: String,
+  did: String,
+  pdata: Pdata,
+  channel: String)
 
 case class Interrupt(
-                      userId: String,
-                      contentprogress: Int,
-                      playsCount: Int,
-
-                    )
+  userId: String,
+  contentprogress: Int,
+  playsCount: Int)
 
 case class ProgressData(
-                         userId: String,
-                         contentId: String,
-                         progress: Double
-                       )
+  userId: String,
+  contentId: String,
+  progress: Double)
+
 case class Actor(
-                  `type`: String,
-                  id: String
-                )
+  `type`: String,
+  id: String)
+
 case class Pdata(
-                  id: String,
-                  pid: String,
-                  ver: String
-                )
+  id: String,
+  pid: String,
+  ver: String)
+
 case class Context(
-                    cdata: List[Actor],
-                    env: String,
-                    channel: String,
-                    pdata: Pdata,
-                    sid: String,
-                    did: String,
-                    rollup: Rollup
-                  )
+  cdata: List[Actor],
+  env: String,
+  channel: String,
+  pdata: Pdata,
+  sid: String,
+  did: String,
+  rollup: Rollup)
+
 case class Edata(
-                  state: String,
-                  props: List[String],
-                  `type`: String
-                )
+  state: String,
+  props: List[String],
+  summary:List[HashMap[String,String]],
+  `type`: String)
+
 case class Rollup(
-                   l1: String,
-                   l2: String
-                 )
-case class ObjectBis(
-                      id: String,
-                      `type`: String,
-                      version: Double,
-                      rollup: Rollup
-                    )
-case class Flags(
-                  ex_processed: Boolean
-                )
-case class ChannelId(
-                  id:String
-                  )
-case class ContentId(
-                    id:String
-                    )
-case class R00tJsonObject(
-                           ver: String,
-                           eid: String,
-                           ets: Double,
-                           actor: Actor,
-                           context: Context,
-                           edata: Edata,
-                           `object`: ObjectBis,
-                           mid: String,
-                           syncts: Double,
-                           `@timestamp`: String,
-                           flags: Flags
-                         )
+  l1: String,
+  l2: String)
 
-//reading file
+case class ObjectDetails(
+  id: String,
+  `type`: String,
+  version: Double,
+  rollup: Rollup)
+
+case class ProgressData(
+  userId: String,
+  contentId: String,
+  progress: Double)
+
+case class OutputData(
+  inProgressContent: Array[ProgressData])
+
 object Testing {
-
   def main(args: Array[String]): Unit = {
-    //    CalculateTheStartAndEnd()
-   val lines= readFile()
-    val result = lines.map((line) => aggragate(line))
-
-
-
-
+    //   CalculateTheStartAndEnd()
   }
 
-  def CalculateTheStartAndEnd() = {
+  val lines = readFile()
+  val result: List[Telmetry] = lines.map((line) => aggregate(line))
+
+  def contentCompleted() = {
+    /**
+     * userId: userID is used to find out number of contents used by user
+     * eid : we use END eid to find out this matrix
+     * we need edata, summary, progress to find out progress of the content
+     *
+     *
+     */
+    result.groupBy(x => x.getUserId).map()
+  }
+
+  def inProgress(itr: List[Telmetry], endRange: Double, userId: String): Int =
+    itr.count(x =>
+      x.getProgress ==endRange &&
+      x.getUserId == userId)
+
+  def getContentProgress(itr: List[Telmetry]): Map[(String), Int] =
+    itr.groupBy(record => (record.getUserId,)).map {
+      case ((userId), logObjects) => (userId) ->
+        inProgress(logObjects, 100.0, userId)
+    }
+
+  def toFile(data: OutputData, newFile: String) = {
+    val gson = new Gson()
+    val jsonData = gson.toJson(data)
+
+    val fileWriter = new PrintWriter(
+      new File(newFile)
+    )
+    try fileWriter.write(jsonData) finally fileWriter.close()
+  }
+
+  def defaultMetrics(outToFile: Boolean, outPath: String): OutputData = {
+    val itr = parseStream(readFile)
+    val progressContent = getContentProgress(itr)
+    val finalData = new OutputData(
+      progressContent.map(
+        // [(String,), Int]
+        r => new ProgressData(r._1,  r._2).asInstanceOf[ProgressData]
+      ).toList.toArray
+    )
+    if (outToFile) toFile(
+      finalData,
+      outPath
+    )
+    finalData
+  }
+}
+  def CalculateTheStartAndEnd() =
+  {
     val filename = "project.json"
     val fileSource = Source.fromFile(filename)
     var start: Int = 0;
@@ -173,23 +213,18 @@ object Testing {
   }
 
 
-
-
-
-
-
-
-  def aggragate(line: String): Telmetry = {
+  def aggregate(line: String): Telmetry = {
     val gson = new Gson()
     val json = gson.fromJson(line, classOf[Telmetry])
-    println("aggragate",json)
     json
   }
 
-  def parseStream(reader: BufferedReader): List[Telmetry] =
+  def parseStream(reader: BufferedReader): List[Telmetry] = {
     Iterator.continually(
       aggragate(reader.readLine())
     ).takeWhile(_ != null).toList
+
+  }
 
 
   def completed_content()(event: List[Telmetry], userId: String, contentId: String, ChannelId: String): Int = {
@@ -197,16 +232,30 @@ object Testing {
     event.filter(x => x.eid == "END" && x.context.pdata.pid == "sunbird.app.contentplayer" && x.getUserId == userId && x.objectData.id == contentId).size
 
   }
+
   List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
   val distinctList = List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
-  val result=distinctList.size
+  val result = distinctList.size
+  println(result)
+
+  def programCount(itr: List[Telmetry], eid: String, pid: String, userId: String, contentId: String): Int = {
+    itr.count(x =>
+      x.getId == eid &&
+        x.getPid == pid &&
+        x.getUserId == userId &&
+        x.getContentId == contentId
+    )
+    def distinct_device_by_channel(itr:List[Telmetry],ChannelId:channel,distinct_device_id:did):Int={
+      itr.count(x=>x.)
+    }
+  }
+  //val output = distinctList.filter(_ =>_.getChannelId == ChannelId)
+ // println(output)
 
 
 
 
 
-  val output=distinctList.filter(_ => _.getChannelId == ChannelId)
-  println(output)
 
 
 
