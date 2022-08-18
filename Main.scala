@@ -1,5 +1,5 @@
 /**
- * total number of completed contens by user
+ * total number of completed contents by user
  * total number of distinct channel
  * total no of disctinct device id per channel
  * is content interrupted*/
@@ -22,159 +22,84 @@ import java.io.FileInputStream
 import java.io.InputStreamReader
 import java.util.zip.GZIPInputStream
 import com.google.gson.Gson
+import com.typesafe.config.{ConfigFactory}
 
-object Testing {
 
-  def main(args: Array[String]): Unit = {
-    //   CalculateTheStartAndEnd()
+object TelemetryMetrics extends App {
+  val gson = new Gson()
+  val applicationConf = ConfigFactory.load("config.conf")
+  val sourceFile = applicationConf.getString("app.sourceFile")
+  val outputFile = applicationConf.getString("app.outputFile")
+
+  /**
+   * Loading Gzip file convert into buffer reader then in the form of list
+   *
+   * @return: returns list of strings
+   */
+  def readFile(): List[String] = {
+    val gzipData = new GZIPInputStream(new BufferedInputStream(new FileInputStream(sourceFile)))
+    val reader = new BufferedReader(new InputStreamReader(gzipData))
+    val data = Iterator.continually(reader.readLine()).takeWhile(_ != null).toList
+    data
   }
 
-  val lines = readFile()
-  val result: List[Telmetry] = lines.map((line) => aggregate(line))
+  /**
+   * it can take the string and it can map the string to telemetryObjects
+   *
+   * @param line  : String of jsonObject
+   * @return: retruns telemetryObjects
+   */
+  def aggregate(line: String): Telmetry = gson.fromJson(line, classOf[Telmetry])
 
+  val telemetryObjects = readFile().map(line => aggregate(line))
 
-
-  def inProgress(itr: List[Telmetry], endRange: Double, userId: String): Int =
-    itr.count(x =>
-      x.getProgress == endRange &&
+  /**
+   * This function can check the progress of content is 100.0 or not
+   * Then returns number of content completed by a user
+   *
+   * @param result      : List of Telemetry Objects
+   * @param progress  : compare the progress value
+   * @param userId      : get the count by specific userId
+   * @return: returns count of completed content by a user
+   */
+  def countCompleted(result: List[Telmetry], progress: Double, userId: String): Int =
+    result.count(x =>
+      x.getProgress == progress &&
         x.getUserId == userId)
 
-  def getContentProgress(result: List[Telmetry]): Map[(String), Int] =
+  /**
+   * it can  group the content those are the progress 100.0
+   *
+   * @param result  : contains list of telemetryObjects
+   * @return: count the number of completed contents
+   */
+  def getContentProgress(result: List[Telmetry]): Map[String, Int] = {
     result.groupBy(record => (record.getUserId)).map {
-      case ((userId), logObjects) => (userId) ->
-        inProgress(logObjects, 100.0, userId)
+      case (userId, logObjects) => userId ->
+        countCompleted(logObjects, 100.0, userId)
     }
 
+  }
 
-  def toFile(data: OutputData, newFile: String) = {
-    val gson = new Gson()
+  /**
+   * it can writes the output to a file
+   *
+   * @param data  : it can takes outputdata
+   */
+  def toFile(data: OutputData) = {
     val jsonData = gson.toJson(data)
-
-
     val fileWriter = new PrintWriter(
-      new File(newFile)
+      new File(outputFile)
     )
     try fileWriter.write(jsonData) finally fileWriter.close()
   }
 
-  def Metrics(outToFile: Boolean, outPath: String): OutputData = {
-    val result = readFile.map(x => aggregate(x))
-    val progressContent = getContentProgress(result)
-    val finalData = new OutputData(
-      progressContent.map(
-        // [(String), Int]
-        r => new ProgressData(r._1, r._2).asInstanceOf[ProgressData]
-      ).toList.toArray
-    )
-    if (outToFile) toFile(
-      finalData,
-      "/home/sanctum/IdeaProjects/data-computation12/src/main/scala/test.json"
+  val completedContent = getContentProgress(telemetryObjects)
 
-    )
-    finalData
-  }
-
-
-  def readFile(): List[String] = {
-    //    val gzipData = new GZIPInputStream(new BufferedInputStream(new FileInputStream("/home/sanctum/IdeaProjects/data-computation12/project.json")))
-    //    val reader = new BufferedReader(new InputStreamReader(gzipData))
-    //    val str = Iterator.continually(reader.readLine()).takeWhile(_ != null).toList
-    // converted into list format
-    val fileSource = Source.fromFile("/home/sanctum/IdeaProjects/data-computation12/project.json")
-    val data = fileSource.getLines().toList
-    var myList = Array("{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}")
-    println("readfile: ", data)
-
-    data
-  }
-
-
-  def aggregate(line: String): Telmetry = {
-    val gson = new Gson()
-    val json = gson.fromJson(line, classOf[Telmetry])
-    json
-  }
-
-
+  val finalData = new OutputData(
+    completedContent.map(
+      // [String, Int]
+      r => new ProgressData(r._1, r._2).asInstanceOf[ProgressData]
+    ).toList.toArray)
+  toFile(finalData)
 }
- /*def CalculateTheStartAndEnd() =
-  {
-    val filename = "project.json"
-    val fileSource = Source.fromFile(filename)
-    var start: Int = 0;
-    var end: Int = 0;
-    var Interact: Int = 0;
-    var Interrupt: Int = 0;
-
-
-    for (line <- fileSource.getLines) {
-      start = start + countOccurrences(line, "START:")
-      end = end + countOccurrences(line, "END:")
-      Interact = Interact + countOccurrences(line, "INTERACT:")
-      Interrupt = Interrupt + countOccurrences(line, tgt = "INTERRUPT")
-    }
-    var myList = Array("{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}")
-
-    // Print all the array elements
-    for (x <- myList) {
-      println(x)
-    }
-    print("occurence of start in file", start)
-    print("\n")
-    print("occurence of end in file", end)
-    print("...\n")
-    print("occurence of INTERACT:", Interact)
-    print("...\n")
-    print("occurence of INTERRUPT:", Interrupt)
-    fileSource.close()
-  }
-
-  def countOccurrences(src: String, tgt: String): Int =
-    src.sliding(tgt.length).count(window => window == tgt)
-
-  def readFile(): List[String] = {
-    //    val gzipData = new GZIPInputStream(new BufferedInputStream(new FileInputStream("/home/sanctum/IdeaProjects/data-computation12/project.json")))
-    //    val reader = new BufferedReader(new InputStreamReader(gzipData))
-    //    val str = Iterator.continually(reader.readLine()).takeWhile(_ != null).toList
-    // converted into list format
-    val fileSource = Source.fromFile("/home/sanctum/IdeaProjects/data-computation12/project.json")
-    val data = fileSource.getLines().toList
-    var myList = Array("{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}", "{\n  \"ver\": \"3.0\",\n  \"eid\": \"AUDIT\",\n  \"ets\": 1606781788341,\n  \"actor\": {\n    \"type\": \"User\",\n    \"id\": \"8c31f821-000b-4100-b034-4b7c7eb56498\"\n  }\n}")
-    println("readfile: ", data)
-
-    data
-  }
-
-
-  def aggregate(line: String): Telmetry = {
-    val gson = new Gson()
-    val json = gson.fromJson(line, classOf[Telmetry])
-    json
-  }
-
-  def parseStream(reader: BufferedReader): List[Telmetry] = {
-    Iterator.continually(
-      aggregate(reader.readLine())
-    ).takeWhile(_ != null).toList
-
-  }
-
-
-
-  List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
-  val distinctList = List(ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002"), ChannelId("0126684405014528002")).distinct
-  val result = distinctList.size
-  println(result)
-
-*/
-
-
-
-
-
-
-
-
-
-
-
