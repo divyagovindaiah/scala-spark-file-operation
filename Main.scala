@@ -39,8 +39,8 @@ object Testing {
       x.getProgress == endRange &&
         x.getUserId == userId)
 
-  def getContentProgress(itr: List[Telmetry]): Map[(String), Int] =
-    itr.groupBy(record => (record.getUserId)).map {
+  def getContentProgress(result: List[Telmetry]): Map[(String), Int] =
+    result.groupBy(record => (record.getUserId)).map {
       case ((userId), logObjects) => (userId) ->
         inProgress(logObjects, 100.0, userId)
     }
@@ -58,17 +58,18 @@ object Testing {
   }
 
   def Metrics(outToFile: Boolean, outPath: String): OutputData = {
-    val itr = readFile.map(x => aggregate(x))
-    val progressContent = getContentProgress(itr)
+    val result = readFile.map(x => aggregate(x))
+    val progressContent = getContentProgress(result)
     val finalData = new OutputData(
       progressContent.map(
-        // [(String,), Int]
+        // [(String), Int]
         r => new ProgressData(r._1, r._2).asInstanceOf[ProgressData]
       ).toList.toArray
     )
     if (outToFile) toFile(
       finalData,
-      outPath
+      "/home/sanctum/IdeaProjects/data-computation12/src/main/scala/test.json"
+
     )
     finalData
   }
