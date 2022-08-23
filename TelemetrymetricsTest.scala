@@ -1,14 +1,15 @@
 
-import org.scalatest.funsuite.AnyFunSuite
-class TelemetryMetricsTest extends AnyFunSuite {
-  val telemetryObjects = TelemetryMetrics.telemetryObjects
-  val readfile = TelemetryMetrics.readFile()
-  val aggregate = TelemetryMetrics.aggregate()
-  val completedContent = TelemetryMetrics.completedContent
-
-  println(telemetryObjects)
-  test("TelemetryMetrics.countCompleted") {
-    assert(TelemetryMetrics.countCompleted(telemetryObjects, 100.0, "80977d17-76ef-4507-b66c-11d4e5c2f045") == 1)
+import TelemetryMetrics.applicationConf
+import com.typesafe.config.ConfigFactory
+import org.scalatest.flatspec.AnyFlatSpec
+class TelemetryMetricsTest extends AnyFlatSpec {
+  val applicationConf = ConfigFactory.load("config1.conf")
+  val sourceFile = applicationConf.getString("app.sourceFile")
+  val readFile= TelemetryMetrics.readFile(sourceFile)
+ val data = TelemetryMetrics.process(readFile)
+  println(readFile.readLine())
+  it should "TelemetryMetrics.telemetryObjects" in {
+    assert(1 === 1)
   }
 }
 
