@@ -18,8 +18,7 @@ import com.typesafe.config.{ConfigFactory}
 
 object TelemetryMetrics extends App {
   val gson = new Gson()
-
-  val applicationConf = ConfigFactory.load("/home/sanctum/IdeaProjects/data-computation12/src/test/resources/config1.conf")
+  val applicationConf = ConfigFactory.load("config.conf")
   val sourceFile = applicationConf.getString("app.sourceFile")
   val outputFile = applicationConf.getString("app.output.totalContentOutFile")
   val metricsOutFile = applicationConf.getString("app.output.metricsOutFile")
@@ -31,17 +30,20 @@ object TelemetryMetrics extends App {
    */
   def readFile(sourceFile: String): BufferedReader = {
     val gzipData = new GZIPInputStream(new BufferedInputStream(new FileInputStream(sourceFile)))
-    // val gzipData = new GZIPInputStream(new BufferedInputStream(new FileInputStream("/home/sanctum/Downloads/project.json.gz")))
     val reader = new BufferedReader(new InputStreamReader(gzipData))
     reader
   }
 
-  def lineToTelemetry(line: String): TelemetryStructure = gson.fromJson(line, classOf[TelemetryStructure])
+  def lineToTelemetry(line: String): TelemetryStructure = {
+    val gson = new Gson()
+    gson.fromJson(line, classOf[TelemetryStructure])
+  }
+
 
   def process(reader: BufferedReader): List[TelemetryStructure] =
-      Iterator.continually(
-        lineToTelemetry(reader.readLine())
-      ).takeWhile(_ != null).toList
+    Iterator.continually(
+      lineToTelemetry(reader.readLine())
+    ).takeWhile(_ != null).toList
 
   /**
    * it can take the string and it can map the string to telemetryObjects
@@ -61,7 +63,7 @@ object TelemetryMetrics extends App {
   def countCompleted(result: List[TelemetryStructure], progress: Double, userId: String): Int =
     result.count(x =>
       x.getProgress == progress &&
-      x.getUserId == userId)
+        x.getUserId == userId)
 
   /**
    * in this count the number of distcint channel
@@ -132,7 +134,9 @@ object TelemetryMetrics extends App {
   distinctChannels.map(f => println("data", f))
   val finalData1 = new OutputData1(
     distinctChannels.map(
-    r =>  new channel(r._1,r._2).asInstanceOf[channel]
+      r =>  new channel(r._1,r._2).asInstanceOf[channel]
     ).toArray)
-    toFile1(finalData1)
+  toFile1(finalData1)
 }
+
+
