@@ -40,10 +40,9 @@ object telemetryMetrics extends App {
   */
 
   def lineToTelemetry(line: String): TelemetryStructure = {
-    val gson = new Gson()
     gson.fromJson(line, classOf[TelemetryStructure])
   }
-  
+
 
   /**
    * Takes in stream data in BufferedReader and returns the list of objects in the stream
