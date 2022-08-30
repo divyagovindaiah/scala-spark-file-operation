@@ -16,7 +16,7 @@ import com.google.gson.Gson
 import com.typesafe.config.{ConfigFactory}
 
 
-object TelemetryMetrics extends App {
+object telemetryMetrics extends App {
   val gson = new Gson()
   val applicationConf = ConfigFactory.load("config.conf")
   val sourceFile = applicationConf.getString("app.sourceFile")
@@ -25,7 +25,6 @@ object TelemetryMetrics extends App {
 
   /**
    * Loading Gzip file convert into buffer reader then in the form of list
-   *
    * @return: returns list of strings
    */
   def readFile(sourceFile: String): BufferedReader = {
@@ -34,23 +33,28 @@ object TelemetryMetrics extends App {
     reader
   }
 
+ /**
+  * Takes in line from stream data in BufferedReader and returns the json parsed class object
+  * @param line: Json object line from file stream
+  * @return TelemetryData
+  */
+
   def lineToTelemetry(line: String): TelemetryStructure = {
     val gson = new Gson()
     gson.fromJson(line, classOf[TelemetryStructure])
   }
+  
 
+  /**
+   * Takes in stream data in BufferedReader and returns the list of objects in the stream
+   * @param reader: BufferedReader which has all the data of file
+   * @return Iterator[TelemetryStructure]
+  */
 
   def process(reader: BufferedReader): List[TelemetryStructure] =
     Iterator.continually(
       lineToTelemetry(reader.readLine())
     ).takeWhile(_ != null).toList
-
-  /**
-   * it can take the string and it can map the string to telemetryObjects
-   *
-   * @param line : String of jsonObject
-   * @return: retruns telemetryObjects
-   */
 
   /**
    * This function can check the progress of content is 100.0 or not
@@ -60,24 +64,18 @@ object TelemetryMetrics extends App {
    * @param userId   : get the count by specific userId
    * @return: returns count of completed content by a user
    */
-  def countCompleted(result: List[TelemetryStructure], progress: Double, userId: String): Int =
-    result.count(x =>
-      x.getProgress == progress &&
-        x.getUserId == userId)
 
-  /**
-   * in this count the number of distcint channel
-   * */
-  def distinctChannels(result1: List[TelemetryStructure], channel: String): Int = {
-    result1.count(x => x.getChannelId == channel)
-  }
+  def countCompleted(result: List[TelemetryStructure], progress: Double, userId: String): Int =
+    result.count(x => x.getProgress == progress)
+
+
 
   /**
    * it can  group the content those are the progress 100.0
-   *
    * @param result : contains list of telemetryObjects
    * @return: count the number of completed contents
    */
+
   def getContentProgress(result: List[TelemetryStructure]): Map[String, Int] = {
     result.groupBy(record => (record.getUserId)).map {
       case (userId, logObjects) => userId ->
@@ -87,10 +85,11 @@ object TelemetryMetrics extends App {
   }
 
   /**
-   * it can group the channalls are distinct
+   * it can group the chas are distinct
    * @param result: contains List of telemetry objects
    * @return: find out the number of disctinctchannnel
    */
+
   def getUniqueChannel(result: List[TelemetryStructure]): Map[String, Int] = {
     val metrics = result.groupBy(f => f.getChannelId).map(f => (f._1, f._2.size))
     metrics
@@ -100,6 +99,7 @@ object TelemetryMetrics extends App {
    * it can writes the output to a file
    *@param data : it can takes outputdata
    */
+
   def toFile(data: OutputData) = {
     val jsonData = gson.toJson(data)
     val fileWriter = new PrintWriter(
@@ -131,7 +131,7 @@ object TelemetryMetrics extends App {
       r => new ProgressData(r._1, r._2).asInstanceOf[ProgressData]
     ).toList.toArray)
   toFile(finalData)
-  distinctChannels.map(f => println("data", f))
+   distinctChannels.map(f => ("data", f))
   val finalData1 = new OutputData1(
     distinctChannels.map(
       r =>  new channel(r._1,r._2).asInstanceOf[channel]
